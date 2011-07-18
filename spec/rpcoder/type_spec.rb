@@ -7,14 +7,19 @@ module RPCoder
 
       before do
         @type = Type.new
-        @type.add_field :name, :type, :options
       end
 
-      subject { @type.fields }
+      describe ".fields" do
+        before do
+          @type.add_field :name, :type, :options
+        end
 
-      it { should be_an_instance_of Array }
-      it { should have(one).item }
-      it { @type.fields.first.should be_an_instance_of Type::Field }
+        subject { @type.fields }
+
+        it { should be_an_instance_of Array }
+        it { should have(one).item }
+        it { @type.fields.first.should be_an_instance_of Type::Field }
+      end
     end
   end
 end
