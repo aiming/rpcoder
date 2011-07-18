@@ -6,6 +6,7 @@ describe "RPCoder" do
   context do
     before do
       RPCoder.clear
+      RPCoder.language = :as3
       RPCoder.name_space = 'foo.bar'
       RPCoder.api_class_name = 'API'
       RPCoder.function "getMail" do |f|

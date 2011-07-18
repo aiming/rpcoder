@@ -6,6 +6,22 @@ require 'rpcoder/type'
 
 module RPCoder
   class << self
+    def language=(language)
+      @language = language
+    end
+
+    def language
+      @language||:as3
+    end
+
+    def file_identifier
+      {
+        :as3 => :as,
+        :as => :as,
+        :cs => :cs,
+      }[languag]
+    end
+
     def name_space=(name_space)
       @name_space = name_space
     end
@@ -51,14 +67,14 @@ module RPCoder
       FileUtils.mkdir_p(class_dir)
 
       [
-        {:path => File.join(class_dir, api_class_name.split('.').last + "Interface.as"), :content => render_functions_interface},
-        {:path => File.join(class_dir, api_class_name.split('.').last + ".as"), :content => render_functions},
-        {:path => File.join(class_dir, api_class_name.split('.').last + "Dummy.as"), :content => render_functions_dummy},
+        {:path => File.join(class_dir, api_class_name.split('.').last + "Interface.#{file_identifier}"), :content => render_functions_interface},
+        {:path => File.join(class_dir, api_class_name.split('.').last + ".#{file_identifier}"), :content => render_functions},
+        {:path => File.join(class_dir, api_class_name.split('.').last + "Dummy.#{file_identifier}"), :content => render_functions_dummy},
       ].each do |hash|
         puts "API: #{hash[:path]}"
         File.open(hash[:path], "w") { |file| file << hash[:content] }
       end
-      types.each { |type| export_type(type, File.join(class_dir, "#{type.name}.as")) }
+      types.each { |type| export_type(type, File.join(class_dir, "#{type.name}.#{file_identifier}")) }
     end
 
     def render_functions_interface
