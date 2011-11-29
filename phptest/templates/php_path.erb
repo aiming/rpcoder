@@ -1,0 +1,15 @@
+<?php
+/* vim: set noexpandtab tabstop=4 shiftwidth=4 softtabstop=4: */
+
+/**
+ * パス定義
+ * ライブラリ群のパスを定義する
+ *
+ * @package    tss
+ * @author     関根 重幸 <sekine@infiniteloop.co.jp>
+ * @copyright  infiniteloop
+ * @license    別紙契約内容を参照
+ */
+
+chdir(dirname(__FILE__));
+define('LIBPATH', realpath('<%= "../" * depth %>') . '/');

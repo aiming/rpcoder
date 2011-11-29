@@ -1,0 +1,104 @@
+<?php
+/* vim: set noexpandtab tabstop=4 shiftwidth=4 softtabstop=4: */
+
+/**
+ * API : <%= func.name.to_s %>
+ *
+ * @package		tss
+ * @author		関根重幸 <sekine@infiniteloop.co.jp> TODO 自分の情報に変更してください、初期ではrpcoder修正者の情報になっています
+ * @copyright	infiniteloop
+ * @license		別紙契約内容を参照
+ */
+
+define('ACTION_TYPE', 'USER_CONTRACT_ACTION');	// *_init.phpを呼ぶ前に定義することで、セッション切れ時にエラーjsonを返してくれる
+require('path.php');
+<%- if nil != func.path.to_s.index("master") -%>
+define('NO_LOGIN_CHECK', true);	// ログインチェックを行なわない
+require(LIBPATH . 'lib/Init/user_init.php');
+<%- elsif nil != func.path.to_s.index("startup") -%>
+require(LIBPATH . 'lib/Init/world_init.php');	// admin or user_init.phpにする必要がある場合があります
+<%- elsif nil != func.path.to_s.index("admin_tools") -%>
+require(LIBPATH . 'lib/Init/admin_init.php');	// user_init.phpにする必要がある場合があります
+<%- else -%>
+require(LIBPATH . 'lib/Init/user_init.php');	// admin_init.phpにする必要がある場合があります
+<%- end -%>
+require(LIBPATH . '<%= File.join("lib/Contract/Function/".split("/"), func.path.to_s.sub(/[^\/]*\.php/, "").sub(/:.*$/, "").split("/"), "#{func.name.to_s}.php") %>');
+<%- api_use_types.each do |type| -%>
+require(LIBPATH . '<%= File.join("lib/Contract/Type/".split("/"), "#{type.to_s}.php") %>');
+<%- end -%>
+
+$contract = new ContractFunction_<%= func.name.to_s %>();
+
+try {
+	$contract->initialize();	// リクエスト情報のバリデートおよびインスタンス変数に格納
+} catch (Exception $e) {
+<%- if 1 != func.path.to_s.index('admin_tools') and 1 != func.path.to_s.index('master') and 1 != func.path.to_s.index('startup') -%>
+	CommonFunctions::printErrorJson(API_ERROR_TYPE_RELOAD, API_ERROR_MESSAGE_REQUEST, '', $contract->getExceptionJsonArray($e->getMessage()));
+<%- else -%>
+	CommonFunctions::printErrorJson(API_ERROR_TYPE_RETENTION, _('送信情報が不正です'), '', $contract->getExceptionJsonArray($e->getMessage()));
+<%- end -%>
+	exit();
+}
+
+// ここからは、開発者が追記したコード ------------------------------------------
+<%- unless func.params.empty? -%>
+// TODO 個別のリクエストパラメータは「$contract->get('キー')」で、全部のリクエストパラメータは「$contract->getAll()」で参照可能となっております
+// TODO 下記のリクエストパラメータを使用してください
+	<%- func.params.each do |param| -%>
+// パラメータ名:<%= param.name.to_s %> 型:<%= param.type.to_s %> 規制:<%= param.options_to_php_array %>
+	<%- end -%>
+<%- else -%>
+// TODO このAPIはリクエストパラメータを使用しません
+<%- end -%>
+<%- if api_use_types.empty? -%>
+// TODO このAPIはTypeを使用しません
+<%- else -%>
+// TODO 下記のTypeを使用して、送信データを作成してください
+<%- end -%>
+<%- api_use_types.each do |type| -%>
+// $<%= type.to_s.downcase %> = new ContractType<%= type.to_s %>();
+<%- end -%>
+
+// ここまでは、開発者が追記したコード ------------------------------------------
+
+<%- if 1 != func.path.to_s.index('master') -%>
+// チュートリアル/クエスト状態確認 TODO startup/*.phpなど一部のAPIでは不要ですので、その場合は削除してください
+$myur = MyUser::singleton();	// TODO 定義済みのときは、この行を削除してください
+$quest_completed_flg = CommonFunctions::hasQuestCompletedForApi($myur->user_id);	// TODO 確実に確認したいときは、第二引数に "true" を指定してください
+if (!is_null($quest_completed_flg)) {
+	// nullでないとき、状態確認しているので、レスポンスJSONに増設する
+	$contract->addResponse('isQuestCompleted', $quest_completed_flg, 'bool');
+}
+
+<%- end -%>
+<%- if func.has_return_type? -%>
+$response_data = array(
+	<%- func.return_types.each do |return_type| -%>
+		<%- comment = " // TODO #{return_type.type.to_s}型" -%>
+		<%- unless return_type.builtin_type? -%>
+			<%- # 組み込み型でないとき -%>
+			<%- comment += "のインスタンス" -%>
+		<%- else -%>
+			<%- comment += "の値" -%>
+		<%- end -%>
+		<%- if return_type.array? -%>
+			<%- # 配列であるとき -%>
+			<%- comment += "の配列" -%>
+		<%- end -%>
+	'<%= return_type.name.to_s %>' => null,<%= comment %>
+	<%- end -%>
+);
+<%- else -%>
+// TODO ここでは、$contract->displayに渡すべきものはありませんので、開発者の作業はこのコメントを消すことで終わります
+<%- end -%>
+
+try {
+	$contract->display(<% if func.has_return_type? %>$response_data<% end %>);	// レスポンス情報のバリデートおよびJsonEcho
+} catch (Exception $e) {
+<%- if 1 != func.path.to_s.index('admin_tools') and 1 != func.path.to_s.index('master') and 1 != func.path.to_s.index('startup') -%>
+	CommonFunctions::printErrorJson(API_ERROR_TYPE_RELOAD, API_ERROR_MESSAGE_RESPONSE, '', $contract->getExceptionJsonArray($e->getMessage()));
+<%- else -%>
+	CommonFunctions::printErrorJson(API_ERROR_TYPE_RETENTION, _('返信情報の取得に失敗しました'), '', $contract->getExceptionJsonArray($e->getMessage()));
+<%- end -%>
+	exit();
+}

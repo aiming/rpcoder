@@ -1,0 +1,85 @@
+<?php
+/* vim: set noexpandtab tabstop=4 shiftwidth=4 softtabstop=4: */
+
+/**
+ * コントラクト定義内 Function のクラス (ContractFunction_*) が継承する基底クラス
+ * rpcoder4phpで生成したファイルのため、特別な編集はこちらではなくphp_ContractFunctionBase.erbに行なうこと
+ *
+ * @package		tss
+ * @author		関根 重幸 <sekine@infiniteloop.co.jp>
+ * @copyright	infiniteloop
+ * @license		別紙契約内容を参照
+ */
+
+define('CONTRACT_VERSION', '<%= version %>');		// コントラクトバージョン
+require(LIBPATH . 'lib/Contract/ValidateType.php');
+
+class ContractFunctionBase extends ValidateType
+{
+	private $__posts;					// POSTのJSONをデコードした配列
+	protected $__add_resp;				// レスポンスに増設する項目
+	protected $__add_resp_vali_opts;	// レスポンスに増設する項目のバリデーションルール
+
+	/**
+	 * コンストラクタ
+	 */
+	public function __construct()
+	{
+		parent::__construct();			// Validetaクラスのコンストラクタ (int32の設定, hard_validateの設定)
+		$this->hard_validate = false;	// 厳密な型チェックを行なわない
+
+		ini_set('html_errors', 0);		// エラー時にhtml出力しない
+	}
+
+
+
+	/**
+	 * POSTのJSONをデコードして格納する
+	 */
+	protected function decodePostJson()
+	{
+		$json = file_get_contents("php://input");		// 生POSTを取得する ($_POSTで受け取れないため)
+
+		if (!is_null($json)) {
+			$this->__posts = json_decode($json, true);	// 配列化デコード
+		} else {
+			$this->setErr('POSTのJSONが取得できない (file_get_contents("php://input")で受け取る仕様)');
+		}
+	}
+
+
+
+	/**
+	 * POSTのJSONをデコードした配列にアクセスする
+	 *
+	 * @param		string		$key		配列のキー
+	 * @return		mixed					あるとき:対応するもの, ないとき:null
+	 */
+	protected function postJson($key)
+	{
+		if (isset($this->__posts[$key])) {
+			return $this->__posts[$key];
+		} else {
+			return null;
+		}
+	}
+
+
+
+	/**
+	 * レスポンスに項目を増設する
+	 *
+	 * @param		string		$key			配列のキー
+	 * @param		string		$value			配列の値
+	 * @param		string		$type			$valueの型
+	 * @param		array		$options		オプション配列
+	 */
+	public function addResponse($key, $value, $type = null, $options = array())
+	{
+		if (!is_null($type)) {
+			$this->__add_resp_vali_opts[$key] = array('type' => $type, 'options' => $options);
+		}
+
+		$this->__add_resp[$key] = $value;
+	}
+}

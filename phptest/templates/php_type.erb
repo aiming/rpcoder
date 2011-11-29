@@ -1,0 +1,153 @@
+<?php
+/* vim: set noexpandtab tabstop=4 shiftwidth=4 softtabstop=4: */
+
+/**
+ * <%= type.name.to_s %>型のクラス
+ * rpcoder4phpで生成したファイルのため、特別な編集はこちらではなくphp_type.erbに行なうこと
+ *
+ * @package		tss
+ * @author		関根 重幸 <sekine@infiniteloop.co.jp>
+ * @copyright	infiniteloop
+ * @license		別紙契約内容を参照
+ */
+
+class ContractType<%= type.name.to_s %> extends ValidateOption
+{
+<%- type.fields.each do |field| -%>
+	<%- comment_str = "型: " # コメント文字列 -%>
+	<%- var_suffix  = ""     # 変数名の接尾語 -%>
+	<%- if field.builtin_type? -%>
+		<%- # 組み込み型であるとき -%>
+		<%- comment_str += "#{field.type.to_s.downcase} (組込型)" -%>
+	<%- else -%>
+		<%- # 組み込み型でないとき -%>
+		<%- comment_str += "#{field.type.to_s} (Type型)" -%>
+	<%- end -%>
+	<%- option_str = "" # バリデートルール文字列 -%>
+	<%- field.options.each do |key, val| -%>
+		<%- option_str += " #{key.to_s}=#{val.to_s}" -%>
+	<%- end -%>
+	<%- unless option_str.empty? -%>
+		<%- comment_str += ", 規約:#{option_str}" -%>
+	<%- end -%>
+	<%- if field.array? -%>
+		<%- # 配列であるとき -%>
+		<%- var_suffix += "_array" -%>
+	<%- end -%>
+	public $<%= field.name.to_s %><%= var_suffix %>; // <%= comment_str %>
+<%- end -%>
+
+	/**
+	 * コンストラクタ
+	 */
+	public function __construct()
+	{
+	}
+
+
+
+	/**
+	 * インスタンス変数を配列に格納して返す
+	 *
+	 * 主に返信データのバリデート時に用いる
+	 *
+	 * @return		array		$data		インスタンス変数を配列に格納したもの
+	 */
+	public function generateArray()
+	{
+		$data = array();
+
+<%- type.fields.each do |field| -%>
+	<%- var_suffix   = "" # 変数名の接尾語 -%>
+	<%- arrow_method = "" # Typeが呼び出すメソッド -%>
+	<%- unless field.builtin_type? -%>
+		<%- # 組み込み型でないとき -%>
+		<%- arrow_method = "->generateArray()" -%>
+	<%- end -%>
+	<%- if field.array? -%>
+		<%- # 配列であるとき -%>
+		<%- var_suffix += "_array" -%>
+	<%- end -%>
+	<%- if !arrow_method.empty? and field.array? -%>
+		<%- # 組み込み型でない、かつ、配列であるとき -%>
+		$data['<%= field.name.to_s %>'] = array();
+		foreach ($this-><%= field.name.to_s %><%= var_suffix %> as &$type) {
+			if (is_null($type)) {
+				$data['<%= field.name.to_s %>'][] = null;
+			} else {
+				$data['<%= field.name.to_s %>'][] = $type<%= arrow_method %>;
+			}
+		}
+	<%- else -%>
+	<%- php_indent   = "" -%>
+		<%- unless field.option_require? -%>
+			<%- # "必須である"オプションがfalseのとき -%>
+		if (!is_null($this-><%= field.name.to_s %>) and '' !== $this-><%= field.name.to_s %>) {
+			<%- php_indent = "\t" -%>
+		<%- end -%>
+		<%= php_indent %>$data['<%= field.name.to_s %>'] = $this-><%= field.name.to_s %><%= var_suffix %><%= arrow_method %>;
+		<%- unless field.option_require? -%>
+		} else {
+			$data['<%= field.name.to_s %>'] = null;
+		}
+		<%- end -%>
+	<%- end -%>
+<%- end -%>
+
+		return $data;
+	}
+
+
+
+	/**
+	 * インスタンス変数を必要に応じてhtmlescapeし、配列に格納して返す
+	 *
+	 * 主に返信データの生成時に用いる
+	 *
+	 * @return		array		$data		インスタンス変数を配列に格納したもの
+	 */
+	public function generateArrayWithEscape()
+	{
+		$data = array();
+
+<%- type.fields.each do |field| -%>
+	<%- var_suffix   = "" # 変数名の接尾語 -%>
+	<%- arrow_method = "" # Typeが呼び出すメソッド -%>
+	<%- unless field.builtin_type? -%>
+		<%- # 組み込み型でないとき -%>
+		<%- arrow_method = "->generateArrayWithEscape()" -%>
+	<%- end -%>
+	<%- if field.array? -%>
+		<%- # 配列であるとき -%>
+		<%- var_suffix += "_array" -%>
+	<%- end -%>
+		if (!is_null($this-><%= field.name.to_s %><%= var_suffix %>)) {
+	<%- if !arrow_method.empty? and field.array? -%>
+		<%- # 組み込み型でない、かつ、配列であるとき -%>
+			$data['<%= field.name.to_s %>'] = array();
+			foreach ($this-><%= field.name.to_s %><%= var_suffix %> as &$type) {
+				if (is_null($type)) {
+					$data['<%= field.name.to_s %>'][] = null;
+				} else {
+					$data['<%= field.name.to_s %>'][] = $type<%= arrow_method %>;
+				}
+			}
+	<%- elsif !arrow_method.empty? -%>
+		<%- # 組み込み型でない、かつ、配列でないとき -%>
+			$data['<%= field.name.to_s %>'] = $this-><%= field.name.to_s %><%= arrow_method %>;
+	<%- else -%>
+		<%- # 組み込み型であるとき -%>
+		<%- esc_prefix = "" -%>
+		<%- esc_suffix = "" -%>
+		<%- if field.option_escape? -%>
+			<%- esc_prefix = "$this->validateHtmlEscape(" -%>
+			<%- esc_suffix = ")" -%>
+		<%- end -%>
+			$data['<%= field.name.to_s %>'] = <%= esc_prefix %>$this-><%= field.name.to_s %><%= var_suffix %><%= esc_suffix %>;
+	<%- end -%>
+		}
+<%- end -%>
+
+		return $data;
+	}
+}
