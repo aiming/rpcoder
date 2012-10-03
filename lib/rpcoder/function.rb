@@ -1,4 +1,5 @@
 require 'rpcoder/param'
+require 'camelizer'
 
 module RPCoder
   class Function
@@ -8,7 +9,7 @@ module RPCoder
     def params
       @params ||= []
     end
-
+	
     def return_types
       @return_types ||= []
     end
@@ -39,6 +40,14 @@ module RPCoder
       params.select { |i| !param_strs.include?(i.name.to_s)  }
     end
 
+    def has_query_params?
+      !query_params.empty?
+    end
+    
+    def is_get?
+      true if method == "GET"
+    end
+    
     def add_return_type(name, type, options = {})
       return_types << Param.new(name, type, options)
     end
