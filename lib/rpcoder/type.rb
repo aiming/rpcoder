@@ -1,4 +1,5 @@
-require 'rpcoder/param'
+require 'param'
+require 'camelizer'
 
 module RPCoder
   class Type

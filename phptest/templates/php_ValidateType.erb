@@ -1,0 +1,113 @@
+<?php
+/* vim: set noexpandtab tabstop=4 shiftwidth=4 softtabstop=4: */
+
+/**
+ * コントラクト定義内 Type のバリデーションクラス
+ * rpcoder4phpで生成したファイルのため、特別な編集はこちらではなくphp_ValidateType.erbに行なうこと
+ *
+ * @package		tss
+ * @author		関根 重幸 <sekine@infiniteloop.co.jp>
+ * @copyright	infiniteloop
+ * @license		別紙契約内容を参照
+ */
+
+require(LIBPATH . 'lib/Class/Validate.php');
+
+class ValidateType extends Validate
+{
+	/**
+	 * コンストラクタ
+	 */
+	public function __construct()
+	{
+		parent::__construct();			// Validetaクラスのコンストラクタ (int32の設定)
+		$this->hard_validate = true;	// 厳密な型チェックを行なう
+	}
+<%- types.each do |type| -%>
+
+
+
+	/**
+	 * <%= type.name.to_s %>型のバリデーション
+	 *
+	 * @param		array		$data			<%= type.name.to_s %>型の配列
+	 * @param		array		$options		オプション配列
+	 */
+	public function validateType<%= type.name.to_s %>($data, $options = array())
+	{
+		try {
+			$this->validateRequire($data, $options);	// 必須オプションを解決する
+
+			foreach ($data as $row) {
+	<%- type.fields.each do |field| -%>
+				$this->error_headline = '<%= type.name.to_s %>-><%= field.name.to_s %>について : ';
+		<%- option_str = field.options_to_php_array -%>
+		<%- unless option_str.empty? -%>
+			<%- option_str = ", #{option_str}" -%>
+		<%- end -%>
+		<%- if field.builtin_type? -%>
+			<%- # 組み込み型であるとき -%>
+				$this->validate_<%= field.type.to_s.downcase %>($row['<%= field.name.to_s %>']<%= option_str %>);
+		<%- else -%>
+			<%- # 組み込み型でないとき -%>
+				$this->validateType<%= field.type.to_s %>($row['<%= field.name.to_s %>']<%= option_str %>);
+		<%- end -%>
+	<%- end -%>
+			}
+		} catch (RuntimeException $e) {
+			$this->setErr(sprintf('<%= type.name.to_s %>型バリデーションエラー %s', $e->getMessage()));
+		}
+	}
+<%- end -%>
+
+
+
+	/**
+	 * 例外エラーメッセージのjson中身を配列で取得する
+	 *
+	 * @param		string			$message		例外エラーメッセージの接頭文
+	 * @return		array|null						エラーレスポンスjsonの配列, ないときはnull
+	 */
+	public function getExceptionJsonArray($message = 'hoge')
+	{
+		if (DEBUG_MODE) {
+			$errs = $this->getException();
+
+			if (0 < count($errs)) {
+				return array('debugMessage' => sprintf('%s : %s', $message, implode(', ', $errs)));
+			}
+		}
+
+		return array();
+	}
+
+
+
+	/**
+	 * 増設レスポンスをバリデートする
+	 *
+	 * @param		string		$error_headline		エラーメッセージの接頭文
+	 */
+	protected function validateAddResponse($resp_arr, $rule_arr, $error_headline = null)
+	{
+		foreach ($rule_arr as $key => $rule) {
+			$this->error_headline = sprintf('%s増設項目 key=%s について : ', $error_headline, $key);
+			if (!is_null($rule['type'])) {
+				switch ($rule['type']) {
+					case 'int':
+						$this->validate_int($resp_arr[$key], $rule['options']);
+						break;
+					case 'double':
+						$this->validate_double($resp_arr[$key], $rule['options']);
+						break;
+					case 'bool':
+						$this->validate_boolean($resp_arr[$key]);
+						break;
+					case 'string':
+						$this->validate_string($resp_arr[$key], $rule['options']);
+						break;
+				}
+			}
+		}
+	}
+}

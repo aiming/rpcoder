@@ -1,0 +1,229 @@
+<?php
+/* vim: set noexpandtab tabstop=4 shiftwidth=4 softtabstop=4: */
+
+/**
+ * <%= func.name.to_s %>のバリデーションクラス
+ * rpcoder4phpで生成したファイルのため、特別な編集はこちらではなくphp_func.erbに行なうこと
+ *
+ * @package		tss
+ * @author		関根 重幸 <sekine@infiniteloop.co.jp>
+ * @copyright	infiniteloop
+ * @license		別紙契約内容を参照
+ */
+
+require(LIBPATH . 'lib/Contract/ContractFunctionBase.php');
+
+class ContractFunction_<%= func.name.to_s %> extends ContractFunctionBase
+{
+	/**
+	 * コンストラクタ
+	 */
+	public function __construct()
+	{
+		parent::__construct();	// Validetaクラスのコンストラクタ (int32の設定, hard_validateの設定)
+	}
+
+
+
+	/**
+	 * 初期化
+	 *
+	 * 受信データをバリデートし、インスタンス変数に値を格納する
+	 */
+	public function initialize()
+	{
+<%- if 'post' === func.method.to_s.downcase -%>
+	<%- # POSTのとき、インスタンス変数に格納する -%>
+		$this->decodePostJson();	// POSTのJSONをデコードする
+
+<%- end -%>
+<%- func.params.each do |param| -%>
+		$this->error_headline = '<%= func.method.to_s.upcase %>[\'<%= param.name.to_s %>\']について : ';
+	<%- if 'post' === func.method.to_s.downcase -%>
+		$value = $this->postJson('<%= param.name.to_s %>');	// POSTで取得する
+	<%- else -%>
+		$value = Request::get('<%= param.name.to_s %>');	// GETで取得する
+	<%- end -%>
+	<%- option_str = param.options_to_php_array # バリデートルール文字列 -%>
+	<%- unless option_str.empty? -%>
+		<%- option_str = ", #{option_str}" -%>
+	<%- end -%>
+	<%- if param.builtin_type? -%>
+		<%- # 組み込み型であるとき -%>
+		$this->validate_<%= param.type.to_s.downcase %>($value<%= option_str %>);
+	<%- else -%>
+		<%- # 組み込み型でないとき -%>
+		$this->validateType<%= param.type.to_s %>($value<%= option_str %>);
+	<%- end -%>
+		$this->set('<%= param.name.to_s %>', $value);
+
+	<%- if CONTRACT_VERSION_VARIABLE_NAME === param.name.to_s -%>
+		if (CONTRACT_VERSION !== $this->get('<%= param.name.to_s %>')) {
+			// コントラクトバージョンが異なるとき
+			if (DEBUG_MODE) {
+				// デバッグモードのとき、例外エラーメッセージをクライアントに通知する
+				CommonFunctions::printErrorJson(API_ERROR_TYPE_RESTART, sprintf(_('コントラクトバージョンを更新してください。最新は "%s" です。'), CONTRACT_VERSION));
+			} else {
+				CommonFunctions::printErrorJson(API_ERROR_TYPE_RESTART, _('ゲームのバージョンが最新ではありません。ストアでアップデートしてください。'));
+			}
+			exit();
+		}
+
+	<%- end -%>
+<%- end -%>
+		$error_message = 'Contract_<%= func.name.to_s %> 受信データのバリデーションエラー';
+
+		// エラーがあれば、例外を発生させる
+		$this->checkException($error_message);
+	}
+
+
+
+	/**
+	 * 表示
+	 *
+<%- if func.has_return_type? # 返すものがあるとき -%>
+	 * 送信データをバリデートし、クライアントに送信する
+	 *
+	 * @param		array		$data		送信データの配列
+<%- else # 返すものがないとき -%>
+	 * 送信データがないため、JSONの空オブジェクトをクライアントに返す
+<%- end -%>
+	 */
+	public function display(<% if func.has_return_type? %>$data<% end %>)
+	{
+<%- if func.has_return_type? # 返すものがあるとき -%>
+		if (DEBUG_MODE) {
+			// デバッグモードのとき、バリデートする
+			$validateType = new ValidateType();
+	<%- escape_flg = false -%>
+	<%- func.return_types.each do |return_type| -%>
+			$validateType->error_headline = 'ContractFunction_<%= func.name.to_s %>->display(array(\'<%= return_type.name.to_s %>\'))について : ';
+		<%- option_str = return_type.options_to_php_array # バリデートルール文字列 -%>
+		<%- unless option_str.empty? -%>
+			<%- option_str = ", #{option_str}" -%>
+		<%- end -%>
+		<%- if return_type.builtin_type? -%>
+			<%- # 組み込み型であるとき -%>
+			$validateType->validate_<%= return_type.type.to_s.downcase %>($data['<%= return_type.name.to_s %>']<%= option_str %>);
+		<%- else -%>
+			<%- # 組み込み型でないとき -%>
+			<%- php_indent = "" -%>
+			<%- unless return_type.option_require? -%>
+				<%- # "必須である"オプションがfalseのとき -%>
+			if (!is_null($data['<%= return_type.name.to_s %>']) and '' !== $data['<%= return_type.name.to_s %>']) {
+				<%- php_indent = "\t" -%>
+			<%- end -%>
+			<%- if return_type.array? -%>
+				<%- # 配列であるとき -%>
+			<%= php_indent %>$array_data = array();
+			<%= php_indent %>foreach ($data['<%= return_type.name.to_s %>'] as &$type) {
+				<%= php_indent %>$array_data[] = $type->generateArray();
+			<%= php_indent %>}
+			<%= php_indent %>$validateType->validateType<%= return_type.type.to_s %>($array_data<%= option_str %>);
+			<%- else -%>
+				<%- # 配列でないとき -%>
+			<%= php_indent %>$validateType->validateType<%= return_type.type.to_s %>($data['<%= return_type.name.to_s %>']->generateArray()<%= option_str %>);
+			<%- end -%>
+			<%- unless return_type.option_require? -%>
+			}
+			<%- end -%>
+		<%- end -%>
+
+	<%- end -%>
+			if (!is_null($this->__add_resp)) {
+				$validateType->validateAddResponse($this->__add_resp, $this->__add_resp_vali_opts, 'ContractFunction_<%= func.name.to_s %>->display ');
+			}
+
+			$error_message = 'Contract_<%= func.name.to_s %> 送信データのバリデーションエラー';
+
+			// エラーがあれば、例外を発生させる
+			$validateType->checkException($error_message);
+		}
+
+		if (!is_null($this->__add_resp)) {
+			// 追加項目があるとき
+			$json = json_encode(array_merge($this->generateArrayOptimize($data), $this->__add_resp));
+		} else {
+			// 追加項目がないとき
+			$json = json_encode($this->generateArrayOptimize($data));
+		}
+	<%- message_add = '(空でないJSONオブジェクトを返します)' -%>
+<%- else # 返すものがないとき -%>
+		if (!is_null($this->__add_resp)) {
+			// 追加項目があるとき
+			if (DEBUG_MODE) {
+				// デバッグモードのとき、バリデートする
+				$validateType = new ValidateType();
+				$validateType->validateAddResponse($this->__add_resp, $this->__add_resp_vali_opts, 'ContractFunction_<%= func.name.to_s %>->display ');
+
+				$error_message = 'Contract_<%= func.name.to_s %> 送信データのバリデーションエラー';
+
+				// エラーがあれば、例外を発生させる
+				$validateType->checkException($error_message);
+			}
+
+			$json = json_encode($this->__add_resp);
+		} else {
+			// 追加項目がないとき
+			$json = '{}';	// JSONの空オブジェクトを返す
+		}
+	<%- message_add = '(空のJSONオブジェクトを返します)' -%>
+<%- end -%>
+
+<%- if 1 != func.path.to_s.index('admin_tools') and 1 != func.path.to_s.index('master') and 1 != func.path.to_s.index('startup') -%>
+	<%- # パスが'admin_tools'でも'master'でも'startup'でもないものから始まっているとき (1 !== なのは、func.pathが'/admin_tools/...'のようになっているため) -%>
+		$myur = MyUser::singleton();
+		log_info('レスポンス情報 : ユーザ名[%s]ユーザID[%s] (チャネリング先の管理ID[%s]) に対して返信したJSON <%= message_add %> = %s', $myur->user_name, $myur->user_id, $myur->owner_id, $json);
+
+<%- end -%>
+		echo $json;
+	}
+
+
+
+	/**
+	 * 返信するJSONの元配列を生成する
+	 *
+	 * 1. nullの項目は除外する
+	 * 2. TypeならばgenerateArrayWithEscapeする
+	 * 3. 必要ならばhtmlescapeする
+	 *
+	 * @prama		array		$obj_array		Typeのインスタンスを含む配列
+	 * @return		array		$data			実引数配列中のTypeのインスタンスを配列化したもの
+	 */
+	public function generateArrayOptimize($obj_array)
+	{
+		$data = array();
+
+<%- func.return_types.each do |field| -%>
+	<%- arrow_method = "" # Typeが呼び出すメソッド -%>
+	<%- unless field.builtin_type? -%>
+		<%- # 組み込み型でないとき -%>
+		<%- arrow_method = "->generateArrayWithEscape()" -%>
+	<%- end -%>
+		if (!is_null($obj_array['<%= field.name.to_s %>'])) {
+	<%- if !arrow_method.empty? and field.array? -%>
+		<%- # 組み込み型でない、かつ、配列であるとき -%>
+			$data['<%= field.name.to_s %>'] = array();
+			foreach ($obj_array['<%= field.name.to_s %>'] as &$type) {
+				$data['<%= field.name.to_s %>'][] = $type<%= arrow_method %>;
+			}
+	<%- else -%>
+		<%- esc_prefix = "" -%>
+		<%- esc_suffix = "" -%>
+		<%- if arrow_method.empty? -%>
+			<%- # 組み込み型であるとき -%>
+			<%- if field.option_escape? -%>
+				<%- esc_prefix = "$this->validateHtmlEscape(" -%>
+				<%- esc_suffix = ")" -%>
+			<%- end -%>
+		<%- end -%>
+			$data['<%= field.name.to_s %>'] = <%= esc_prefix %>$obj_array['<%= field.name.to_s %>']<%= arrow_method %><%= esc_suffix %>;
+	<%- end -%>
+		}
+<%- end -%>
+
+		return $data;
+	}
+}

@@ -1,0 +1,41 @@
+using <%= name_space %>;
+using System.Collections.Generic;
+
+namespace Aiming.TSS.Models.Tasks
+{
+	public static class ApiExtensions
+	{
+		<%- functions.each do |func| -%>
+		<%-
+			response = func.name.camelize + "Response"
+			params = func.params.map{|i| [i.array_or_type, i.name.to_s.camelize(false)].join(' ') }.join(', ')
+			params = ', ' + params if not params.empty?
+			args = func.params.map{|i| i.name.to_s.camelize(false) }.join(', ')
+			args = args + ', ' if not params.empty?
+		-%>
+		public static Task<<%= response %>> <%= func.name.camelize %>Async(this APIInterface api<%= params %>)
+		{
+			return new Task<<%= response %>>(success => api.<%= func.name.camelize %>(<%= args %>success, ThrowOnError));
+		}
+
+		<%- end -%>
+		
+		private static void ThrowOnError(string errorType, string message, string targetScene)
+		{
+			throw new RpcoderException(errorType, message, targetScene);
+		}
+	}
+	
+	public partial class RpcoderException : System.Exception
+	{
+		public string ErrorType { get; private set; }
+		public string TargetScene { get; private set; }
+		
+		public RpcoderException(string errorType, string message, string targetScene)
+			: base(message)
+		{
+			ErrorType = errorType;
+			TargetScene = targetScene;
+		}
+	}
+}

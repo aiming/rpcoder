@@ -1,0 +1,29 @@
+# -*- coding: utf-8 -*-
+#
+# <%= func.description.to_s %>
+#
+
+class <%= name_space %>.<%= func.name %>Api extends <%= name_space %>.ApiBase
+  url: "<%= func.path.to_s %>"
+  method: "<%= func.method.to_s %>"
+
+  onSuccess: (data, status_text, xhr) ->
+    super(data, status_text, xhr)
+    if data['status'] == 'ok'
+<%- if func.name == 'Resource' -%>
+      models = data['models']
+      _.each models, (val) ->
+        model = BSC.Pool.get().get val['name']
+        if model instanceof BSC.CollectionBase
+          model.reset val['list']    # call Backbone.Collection.reset
+        else
+          model.set val['list']      # call Backbone.Model.set
+        model.trigger('update')
+<%- else -%>
+<%- end -%>
+    else
+      # TODO onSuccessでngってありえる？
+
+  onError: (xhr, status_text, errorThrown) ->
+    #
+    super(xhr, status_text, errorThrown)
