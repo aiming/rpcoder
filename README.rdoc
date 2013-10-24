@@ -84,3 +84,11 @@ Dummy RPC works standalone. You can set anything responses at callback.
 
   // rpc.getMail() may callback as error.
   (rpc as RPCDummy).setDummyError("getMail", true);
+
+=== LICENSE
+
+MIT License.
+
+=== Copyright
+
+Copyright (c) 2011-2013 Aiming Inc.
